@@ -1,34 +1,47 @@
+from flask import Flask, request, jsonify
 from ultralytics import YOLO
-from pathlib import Path
 from PIL import Image
 import numpy as np
 import easyocr
-import cv2
+import base64
+from io import BytesIO
 from gtts import gTTS
+import os
 import pygame
 
-# Define the path to the pretrained model and the source directory
-model_path = Path('best.pt')
+app = Flask(__name__)
 
 # Load pretrained YOLOv8s model
+model_path = 'best.pt'
 model = YOLO(model_path)
 
-# translate text on image to string
+# Initialize Pygame mixer for audio playback
+pygame.mixer.init()
+
+# Function to play audio
+def play_audio(text):
+    tts = gTTS(text=text, lang='en')
+    audio_file = 'bus_audio.mp3'
+    tts.save(audio_file)
+    pygame.mixer.music.load(audio_file)
+    pygame.mixer.music.play()
+
+# Translate text on image to string
 def ocr_to_string(image):
     image_PIL_form = image
     image = np.array(image)
     reader = easyocr.Reader(['en'])
     result = reader.readtext(image)
-    result_list = [text_tuple[1] for text_tuple in result] # convert tuple to list
-    result_string = ' '.join(result_list) # concat list string elements into a string
+    result_list = [text_tuple[1] for text_tuple in result]  # convert tuple to list
+    result_string = ' '.join(result_list)  # concat list string elements into a string
     list_of_bus_numbers = ['A1', 'A2', 'D1', 'D2', 'K', 'E', 'BTC', '96', '95', '151', 
                            'L', '153', '154', '156', '170', '186', '48', '67', '183', 
                            '188', '33', '10', '200', '201']
     
-    # run detection model on bus number object
-    model_path_cropped = Path('best-cropped.pt')
+    # Run detection model on bus number object
+    model_path_cropped = 'best-cropped.pt'
     model_cropped = YOLO(model_path_cropped)
-    results_cropped = model_cropped(source=image_PIL_form, conf = 0.40)
+    results_cropped = model_cropped(image_PIL_form, conf=0.40)
     image_cropped = None
     bus_number = 'Bus not found'
     for result_cropped in results_cropped:
@@ -40,22 +53,19 @@ def ocr_to_string(image):
             # Crop and do image processing for the detected object
             image_cropped = Image.fromarray(orig_img).crop((xmin, ymin, xmax, ymax))
     
-            # attempt 1 to identify bus number through bus number object
+            # Attempt 1 to identify bus number through bus number object
             image_cropped = np.array(image_cropped)
             reader_cropped = easyocr.Reader(['en'])
             result_cropped = reader_cropped.readtext(image_cropped)
-            result_list_cropped = [text_tuple[1] for text_tuple in result_cropped] # convert tuple to list
-            result_string_cropped = ' '.join(result_list_cropped) # concat list string elements into a string 
+            result_list_cropped = [text_tuple[1] for text_tuple in result_cropped]  # convert tuple to list
+            result_string_cropped = ' '.join(result_list_cropped)  # concat list string elements into a string 
             bus_number = find_substring(result_string_cropped, list_of_bus_numbers)
             
         if bus_number != 'Bus not found':
             return bus_number
     
-        # attempt 2 to identify bus number through bus object
-        return find_substring(result_string, list_of_bus_numbers)
-    
-    # case where no bus object is detected (??)
-    return 'Bus not found'
+    # Attempt 2 to identify bus number through bus object
+    return find_substring(result_string, list_of_bus_numbers)
 
 def find_substring(main_string, substrings):
     for substring in substrings:
@@ -75,42 +85,28 @@ def process_results(results):
             cropped_img = Image.fromarray(img).crop((xmin, ymin, xmax, ymax))
             
             return ocr_to_string(cropped_img)
-        
-# Open primary camera
-cap = cv2.VideoCapture(0)
-count = 0
-current_audio_count = 0
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+@app.route('/process-frame', methods=['POST'])
+def process_frame():
+    try:
+        data = request.json
+        frame_data = data['frame']
+        
+        # Convert base64 image to PIL Image
+        image = Image.open(BytesIO(base64.b64decode(frame_data)))
+        
+        # Process the frame with YOLO model
+        results = model(image, conf=0.70)
+        bus_result = process_results(results)
+        
+        if bus_result != 'Bus not found':
+            play_audio(bus_result)
+        
+        return jsonify({'result': bus_result}), 200
     
-    results = model(frame, conf=0.70)
-    count = count + 1
-    bus_result = process_results(results)
-        
-    if bus_result != '' and bus_result != 'Bus not found' and bus_result is not None and (count > current_audio_count + 100): 
-        language = 'en'
-        
-        try:
-            audio_obj = gTTS(text=bus_result, lang=language, slow=False)
-            audio_file = 'audio/bus-audio.mp3'
-            audio_obj.save(audio_file)
-            # Initialize the mixer module
-            pygame.mixer.init()
-            # Load the mp3 file
-            pygame.mixer.music.load(audio_file)
-            # Play the loaded mp3 file
-            pygame.mixer.music.play()
-        except Exception as e:
-            continue
+    except Exception as e:
+        print(f"Error processing frame: {str(e)}")
+        return jsonify({'error': 'Error processing frame'}), 500
 
-    # Break the loop on 'q' key press 
-    # in app, it will be the back button
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-    
-# Close camera
-cap.release()
-cv2.destroyAllWindows()
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)

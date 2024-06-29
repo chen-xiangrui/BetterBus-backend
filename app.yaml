@@ -1,0 +1,28 @@
+runtime: python
+env: flex
+entrypoint: gunicorn -b :$PORT app:app
+
+runtime_config:
+    operating_system: "ubuntu22"
+    runtime_version: "3.12"
+
+resources:
+  cpu: 2
+  memory_gb: 4 
+  disk_size_gb: 100
+  volumes:
+  - name: ramdisk1
+    volume_type: tmpfs
+    size_gb: 0.5
+
+readiness_check:
+  path: "/_ah/health"
+  check_interval_sec: 500
+  timeout_sec: 200
+  failure_threshold: 10
+  success_threshold: 10
+  app_start_timeout_sec: 1800
+
+automatic_scaling:
+  min_num_instances: 1
+  max_num_instances: 7
