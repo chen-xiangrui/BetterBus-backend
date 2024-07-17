@@ -170,7 +170,6 @@
 # thread.start()
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 from ultralytics import YOLO
 from PIL import Image
 import numpy as np
@@ -180,7 +179,6 @@ from io import BytesIO
 from threading import Thread
 
 app = Flask(__name__)
-CORS(app)
 
 # Load pretrained YOLOv8s model
 model_path = 'best.pt'
