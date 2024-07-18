@@ -265,7 +265,7 @@ def process_frame():
         return jsonify({'error': 'Error processing frame'}), 500
 
 def run_flask():
-    app.run(port=8501)
+    app.run(debug=True)
 
 thread = Thread(target=run_flask)
 thread.start()
