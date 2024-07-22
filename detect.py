@@ -360,6 +360,10 @@ from PIL import Image
 import numpy as np
 import easyocr
 from ultralytics import YOLO
+from flask import Flask, request, jsonify
+
+# Initialize Flask app
+app = Flask(__name__)
 
 # Load pretrained YOLOv8s model
 model_path = 'best.pt'
@@ -416,33 +420,29 @@ def process_image(image):
             return ocr_to_string(cropped_img)
     return 'Bus not found'
 
-def handle_request():
-    uploaded_file = st.file_uploader("Choose an image...", type="jpg")
-    if uploaded_file:
-        image = Image.open(uploaded_file)
-        bus_result = process_image(image)
-        return bus_result
+@app.route('/process_image', methods=['POST'])
+def process_image_api():
+    data = request.json
+    if 'frame' not in data:
+        return jsonify({'error': 'No frame provided'}), 400
 
-if st.sidebar.button('API Request'):
-    # Handle API requests
-    from flask import Flask, request, jsonify
-    app = Flask(__name__)
+    frame_data = data['frame']
+    image = Image.open(BytesIO(base64.b64decode(frame_data.split(',')[1])))
+    bus_result = process_image(image)
+    return jsonify({'result': bus_result})
 
-    @app.route('/process_image', methods=['POST'])
-    def process_image_api():
-        data = request.json
-        if 'frame' not in data:
-            return jsonify({'error': 'No frame provided'}), 400
-        
-        frame_data = data['frame']
-        image = Image.open(BytesIO(base64.b64decode(frame_data.split(',')[1])))
-        bus_result = process_image(image)
-        return jsonify({'result': bus_result})
+def start_flask_app():
+    from werkzeug.serving import run_simple
+    run_simple('0.0.0.0', 8000, app)
 
-    app.run(port=8000)
+# Streamlit UI
+st.title('Bus Number Detection')
 
-else:
-    st.title('Bus Number Detection')
-    result = handle_request()
-    if result:
-        st.write({"result": result})
+uploaded_file = st.file_uploader("Choose an image...", type="jpg")
+if uploaded_file:
+    image = Image.open(uploaded_file)
+    bus_result = process_image(image)
+    st.write({"result": bus_result})
+
+if __name__ == 'main':
+    start_flask_app()
