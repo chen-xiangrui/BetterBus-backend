@@ -279,6 +279,80 @@
 
 
 
+# import streamlit as st
+# import base64
+# from io import BytesIO
+# from PIL import Image
+# import numpy as np
+# import easyocr
+# from ultralytics import YOLO
+
+# # Load pretrained YOLOv8s model
+# model_path = 'best.pt'
+# model = YOLO(model_path)
+
+# # Load YOLOv8s cropped model
+# model_path_cropped = 'best-cropped.pt'
+# model_cropped = YOLO(model_path_cropped)
+
+# def ocr_to_string(image):
+#     image_PIL_form = image
+#     image = np.array(image)
+#     reader = easyocr.Reader(['en'])
+#     result = reader.readtext(image)
+#     result_list = [text_tuple[1] for text_tuple in result]
+#     result_string = ' '.join(result_list)
+#     list_of_bus_numbers = ['A1', 'A2', 'D1', 'D2', 'K', 'E', 'BTC', '96', '95', '151', 
+#                            'L', '153', '154', '156', '170', '186', '48', '67', '183', 
+#                            '188', '33', '10', '200', '201']
+
+#     results_cropped = model_cropped(image_PIL_form, conf=0.40)
+#     image_cropped = None
+#     bus_number = 'Bus not found'
+#     for result_cropped in results_cropped:
+#         orig_img = result_cropped.orig_img
+#         for i, bbox in enumerate(result_cropped.boxes.xyxy):
+#             xmin, ymin, xmax, ymax = map(int, bbox)
+#             image_cropped = Image.fromarray(orig_img).crop((xmin, ymin, xmax, ymax))
+#             image_cropped = np.array(image_cropped)
+#             reader_cropped = easyocr.Reader(['en'])
+#             result_cropped = reader_cropped.readtext(image_cropped)
+#             result_list_cropped = [text_tuple[1] for text_tuple in result_cropped]
+#             result_string_cropped = ' '.join(result_list_cropped)
+#             bus_number = find_substring(result_string_cropped, list_of_bus_numbers)
+#         if bus_number != 'Bus not found':
+#             return bus_number
+
+#     return find_substring(result_string, list_of_bus_numbers)
+
+# def find_substring(main_string, substrings):
+#     for substring in substrings:
+#         if substring in main_string:
+#             return substring
+#     return 'Bus not found'
+
+# def process_image(image):
+#     results = model(image, conf=0.70)
+#     for result in results:
+#         img = result.orig_img
+#         for i, bbox in enumerate(result.boxes.xyxy):  
+#             xmin, ymin, xmax, ymax = map(int, bbox)
+#             ymax -= (1 / 4) * (ymax - ymin)
+#             cropped_img = Image.fromarray(img).crop((xmin, ymin, xmax, ymax))
+#             return ocr_to_string(cropped_img)
+#     return 'Bus not found'
+
+# st.title('Bus Number Detection')
+
+# uploaded_file = st.file_uploader("Choose an image...", type="jpg")
+# if uploaded_file:
+#     image = Image.open(uploaded_file)
+#     bus_result = process_image(image)
+#     st.write({"result": bus_result})
+
+
+
+
 import streamlit as st
 import base64
 from io import BytesIO
@@ -342,10 +416,33 @@ def process_image(image):
             return ocr_to_string(cropped_img)
     return 'Bus not found'
 
-st.title('Bus Number Detection')
+def handle_request():
+    uploaded_file = st.file_uploader("Choose an image...", type="jpg")
+    if uploaded_file:
+        image = Image.open(uploaded_file)
+        bus_result = process_image(image)
+        return bus_result
 
-uploaded_file = st.file_uploader("Choose an image...", type="jpg")
-if uploaded_file:
-    image = Image.open(uploaded_file)
-    bus_result = process_image(image)
-    st.write({"result": bus_result})
+if st.sidebar.button('API Request'):
+    # Handle API requests
+    from flask import Flask, request, jsonify
+    app = Flask(__name__)
+
+    @app.route('/process_image', methods=['POST'])
+    def process_image_api():
+        data = request.json
+        if 'frame' not in data:
+            return jsonify({'error': 'No frame provided'}), 400
+        
+        frame_data = data['frame']
+        image = Image.open(BytesIO(base64.b64decode(frame_data.split(',')[1])))
+        bus_result = process_image(image)
+        return jsonify({'result': bus_result})
+
+    app.run(port=8000)
+
+else:
+    st.title('Bus Number Detection')
+    result = handle_request()
+    if result:
+        st.write({"result": result})
