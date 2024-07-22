@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from ultralytics import YOLO
 from PIL import Image
 import numpy as np
@@ -8,6 +9,8 @@ from io import BytesIO
 from threading import Thread
 
 app = Flask(__name__)
+CORS(app)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 
 
 # Load pretrained YOLOv8s model
 model_path = 'best.pt'
@@ -74,29 +77,26 @@ def process_results(results):
             cropped_img = Image.fromarray(img).crop((xmin, ymin, xmax, ymax))
             
             return ocr_to_string(cropped_img)
+    return 'Bus not found'
 
 @app.route('/process-frame', methods=['POST'])
 def process_frame():
     try:
-        data = request.json
-        frame_data = data['frame']
-        
-        # Convert base64 image to PIL Image
-        image = Image.open(BytesIO(base64.b64decode(frame_data)))
-        
-        # Process the frame with YOLO model
-        results = model(image, conf=0.70)
-        bus_result = process_results(results)
-        print(f"Final Bus Result: {bus_result}")  # Debug log
-        
-        return jsonify({'result': bus_result}), 200
+        # data = request.json
+        # frame_data = data['frame']
+        # # Convert base64 image to PIL Image
+        # image = Image.open(BytesIO(base64.b64decode(frame_data)))
+        # # Process the frame with YOLO model
+        # results = model(image, conf=0.70)
+        # bus_result = process_results(results)
+        return jsonify({'result': 'Hello'}), 200
     
     except Exception as e:
         print(f"Error processing frame: {str(e)}")
         return jsonify({'error': 'Error processing frame'}), 500
 
 def run_flask():
-    app.run(port=8501)
+    app.run(debug=True, use_reloader=False)
 
 thread = Thread(target=run_flask)
 thread.start()
