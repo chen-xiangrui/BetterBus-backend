@@ -361,11 +361,10 @@ import easyocr
 from ultralytics import YOLO
 import base64
 
-# Load pretrained YOLOv8s model
+# Load pretrained YOLOv8s models
 model_path = 'best.pt'
 model = YOLO(model_path)
 
-# Load YOLOv8s cropped model
 model_path_cropped = 'best-cropped.pt'
 model_cropped = YOLO(model_path_cropped)
 
@@ -425,14 +424,14 @@ if uploaded_file:
     bus_result = process_image(image)
     st.write({"result": bus_result})
 
-# API endpoint
-if st.experimental_get_query_params().get('api'):
-    st.write("API mode activated")
-    data = st.experimental_get_query_params().get('data')
-    if data:
-        frame_data = data[0]
-        image = Image.open(BytesIO(base64.b64decode(frame_data)))
+# Optional form to simulate API-like input
+st.sidebar.header('API Input Simulation')
+base64_data = st.sidebar.text_area('Base64 Image Data', '')
+if base64_data:
+    try:
+        frame_data = base64.b64decode(base64_data)
+        image = Image.open(BytesIO(frame_data))
         bus_result = process_image(image)
-        st.json({"result": bus_result})
-    else:
-        st.json({"error": "No data provided"})
+        st.sidebar.json({"result": bus_result})
+    except Exception as e:
+        st.sidebar.json({"error": str(e)})
