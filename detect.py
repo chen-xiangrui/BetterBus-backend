@@ -362,9 +362,6 @@ import easyocr
 from ultralytics import YOLO
 from flask import Flask, request, jsonify
 
-# Initialize Flask app
-app = Flask(__name__)
-
 # Load pretrained YOLOv8s model
 model_path = 'best.pt'
 model = YOLO(model_path)
@@ -420,21 +417,6 @@ def process_image(image):
             return ocr_to_string(cropped_img)
     return 'Bus not found'
 
-@app.route('/process_image', methods=['POST'])
-def process_image_api():
-    data = request.json
-    if 'frame' not in data:
-        return jsonify({'error': 'No frame provided'}), 400
-
-    frame_data = data['frame']
-    image = Image.open(BytesIO(base64.b64decode(frame_data.split(',')[1])))
-    bus_result = process_image(image)
-    return jsonify({'result': bus_result})
-
-def start_flask_app():
-    from werkzeug.serving import run_simple
-    run_simple('0.0.0.0', 8000, app)
-
 # Streamlit UI
 st.title('Bus Number Detection')
 
@@ -444,5 +426,14 @@ if uploaded_file:
     bus_result = process_image(image)
     st.write({"result": bus_result})
 
-if __name__ == 'main':
-    start_flask_app()
+# API endpoint
+if st.experimental_get_query_params().get('api'):
+    st.write("API mode activated")
+    data = st.experimental_get_query_params().get('data')
+    if data:
+        frame_data = data[0]
+        image = Image.open(BytesIO(base64.b64decode(frame_data.split(',')[1])))
+        bus_result = process_image(image)
+        st.json({"result": bus_result})
+    else:
+        st.json({"error": "No data provided"})
