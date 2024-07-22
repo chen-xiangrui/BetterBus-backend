@@ -354,13 +354,12 @@
 
 
 import streamlit as st
-import base64
 from io import BytesIO
 from PIL import Image
 import numpy as np
 import easyocr
 from ultralytics import YOLO
-from flask import Flask, request, jsonify
+import base64
 
 # Load pretrained YOLOv8s model
 model_path = 'best.pt'
@@ -432,7 +431,7 @@ if st.experimental_get_query_params().get('api'):
     data = st.experimental_get_query_params().get('data')
     if data:
         frame_data = data[0]
-        image = Image.open(BytesIO(base64.b64decode(frame_data.split(',')[1])))
+        image = Image.open(BytesIO(base64.b64decode(frame_data)))
         bus_result = process_image(image)
         st.json({"result": bus_result})
     else:
