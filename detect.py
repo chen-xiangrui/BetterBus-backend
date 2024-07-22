@@ -362,11 +362,10 @@ from ultralytics import YOLO
 import base64
 import json
 
-# Load pretrained YOLOv8s model
+# Load pretrained YOLOv8s models
 model_path = 'best.pt'
 model = YOLO(model_path)
 
-# Load YOLOv8s cropped model
 model_path_cropped = 'best-cropped.pt'
 model_cropped = YOLO(model_path_cropped)
 
@@ -417,18 +416,26 @@ def process_image(image):
             return ocr_to_string(cropped_img)
     return 'Bus not found'
 
-# API endpoint
-st.title('Bus Number Detection API')
+# Streamlit UI
+st.title('Bus Number Detection')
 
-if st.experimental_get_query_params().get('api'):
-    st.write("API mode activated")
-    data = st.experimental_get_query_params().get('data')
-    if data:
-        frame_data = data[0]
-        image = Image.open(BytesIO(base64.b64decode(frame_data)))
+# File upload component
+uploaded_file = st.file_uploader("Choose an image...", type="jpg")
+
+# API simulation via file upload or sidebar input
+if uploaded_file:
+    image = Image.open(uploaded_file)
+    bus_result = process_image(image)
+    st.json({"result": bus_result})
+
+# API simulation via sidebar
+st.sidebar.header('API Input Simulation')
+base64_data = st.sidebar.text_area('Base64 Image Data', '')
+if base64_data:
+    try:
+        frame_data = base64.b64decode(base64_data)
+        image = Image.open(BytesIO(frame_data))
         bus_result = process_image(image)
-        st.json({"result": bus_result})
-    else:
-        st.json({"error": "No data provided"})
-else:
-    st.write("This app is intended to be used as an API.")
+        st.sidebar.json({"result": bus_result})
+    except Exception as e:
+        st.sidebar.json({"error": str(e)})
