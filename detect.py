@@ -426,9 +426,9 @@ if uploaded_file:
     st.write({"result": bus_result})
 
 # API endpoint
-if st.experimental_get_query_params().get('api'):
+if st.query_params().get('api'):
     st.write("API mode activated")
-    data = st.experimental_get_query_params().get('data')
+    data = st.query_params().get('data')
     if data:
         frame_data = data[0]
         image = Image.open(BytesIO(base64.b64decode(frame_data)))
