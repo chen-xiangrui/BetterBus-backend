@@ -108,6 +108,7 @@ def get_coordinates(results):
 
 def ocr_to_string(image):
     reader = easyocr.Reader(['en'])
+    print('easyocr ran successfully')
     result = reader.readtext(np.array(image))
     result_list = [text_tuple[1] for text_tuple in result]  # Convert tuple to list
     return ' '.join(result_list)  # Concatenate list string elements into a string
@@ -128,9 +129,11 @@ async def process_frame(data: FrameData):
         
         # Convert base64 image to PIL Image
         image = Image.open(BytesIO(base64.b64decode(frame_data)))
+        print('image converted to PIL format')
         
         # Process the frame with YOLO model
         results = model(image, conf=0.70)
+        print('model ran successfully')
         coordinates = get_coordinates(results)
         
         detected_bus_numbers = ['A1', 'A2', 'D1', 'D2', 'K', 'E', 'BTC', '96', '95', '151', 'L', '153', '154', '156', '170', '186', '48', '67', '183', '188', '33', '10', '200', '201']
