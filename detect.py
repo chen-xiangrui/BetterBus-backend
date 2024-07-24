@@ -54,10 +54,12 @@ async def process_frame(data: FrameData):
             
             # Perform OCR on the cropped image
             detected_text = pytesseract.image_to_string(cropped_image)
+            print('Detected string: ' + detected_text)
             
             # Check if the detected text contains any of the specified bus numbers
             for bus_number in detected_bus_numbers:
                 if bus_number in detected_text:
+                    print('Managed to detect bus number: ' + bus_number)
                     return {"bus_number": bus_number}
         
         return {"bus_number": "Bus not found"}
