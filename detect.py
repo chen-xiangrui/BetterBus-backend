@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from ultralytics import YOLO
 from PIL import Image
+import pytesseract
 import base64
 from io import BytesIO
 import uvicorn
@@ -45,7 +46,21 @@ async def process_frame(data: FrameData):
         results = model(image, conf=0.70)
         coordinates = get_coordinates(results)
         
-        return {"coordinates": coordinates}
+        detected_bus_numbers = ['A1', 'A2', 'D1', 'D2', 'K', 'E', 'BTC', '96', '95', '151', 'L', '153', '154', '156', '170', '186', '48', '67', '183', '188', '33', '10', '200', '201']
+        
+        for coord in coordinates:
+            # Crop the image based on coordinates
+            cropped_image = image.crop((coord['xmin'], coord['ymin'], coord['xmax'], coord['ymax']))
+            
+            # Perform OCR on the cropped image
+            detected_text = pytesseract.image_to_string(cropped_image)
+            
+            # Check if the detected text contains any of the specified bus numbers
+            for bus_number in detected_bus_numbers:
+                if bus_number in detected_text:
+                    return {"bus_number": bus_number}
+        
+        return {"bus_number": "Bus not found"}
     
     except Exception as e:
         print(f"Error processing frame: {str(e)}")
