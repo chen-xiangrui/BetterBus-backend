@@ -264,6 +264,10 @@ def find_substring(main_string, substrings):
     return 'Bus not found'
 
 def process_results(results):
+    # Check if there are any detections
+    if len(results) == 0 or len(results[0].boxes) == 0:
+        return 'Bus not found'
+
     # Process each result
     for result in results:
         img = result.orig_img
@@ -275,6 +279,9 @@ def process_results(results):
             cropped_img = Image.fromarray(img).crop((xmin, ymin, xmax, ymax))
             
             return ocr_to_string(cropped_img)
+
+    return 'Bus not found'
+
 
 class FrameData(BaseModel):
     frame: str
